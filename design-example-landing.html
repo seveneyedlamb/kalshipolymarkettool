@@ -1,0 +1,1858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harpoon Cannon - Prediction Market Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=IBM+Plex+Mono:wght@300;400;500;600&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* =========================================================
+   CONCEPT C: THE NAUTICAL CHART
+   Deep ocean. Compass rose gold. Whale-as-data hero.
+   ========================================================= */
+
+:root {
+  --bg: #0A1628;
+  --bg-deep: #071120;
+  --surface: #111D33;
+  --surface-2: #152540;
+  --surface-hover: #1A2D4C;
+  --border: #1E3048;
+  --border-subtle: rgba(212, 167, 82, 0.12);
+  --border-gold: rgba(212, 167, 82, 0.35);
+
+  --gold: #D4A752;
+  --gold-bright: #E8C576;
+  --gold-deep: #A07E2E;
+  --bone: #F5F0E8;
+  --fog: #94A3B8;
+  --fog-light: #B8C5D6;
+
+  --success: #22D3A0;
+  --success-deep: #0F8E68;
+  --danger: #EF4444;
+  --warning: #F59E0B;
+
+  --font-display: 'EB Garamond', Georgia, serif;
+  --font-body: 'Source Sans 3', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --radius: 4px;
+  --radius-lg: 8px;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 20px rgba(0,0,0,0.3);
+  --shadow-gold: 0 0 0 1px rgba(212, 167, 82, 0.2), 0 0 20px rgba(212, 167, 82, 0.15);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--bone);
+  font-family: var(--font-body);
+  font-weight: 400;
+  line-height: 1.6;
+  overflow-x: hidden;
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Chart paper texture overlay - subtle noise */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='5'/%3E%3CfeColorMatrix values='0 0 0 0 0.83 0 0 0 0 0.65 0 0 0 0 0.32 0 0 0 0.025 0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 1;
+  mix-blend-mode: overlay;
+}
+
+/* Subtle lat/long grid */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(212, 167, 82, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(212, 167, 82, 0.025) 1px, transparent 1px);
+  background-size: 80px 80px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+main, header, footer { position: relative; z-index: 2; }
+
+/* =========================================================
+   TYPOGRAPHY
+   ========================================================= */
+
+h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; line-height: 1.15; color: var(--bone); letter-spacing: -0.015em; }
+h1 { font-size: clamp(2.5rem, 5.5vw, 4.5rem); font-weight: 500; }
+h2 { font-size: clamp(2rem, 4vw, 3.25rem); font-weight: 500; }
+h3 { font-size: clamp(1.35rem, 2vw, 1.75rem); font-weight: 500; }
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.eyebrow::before {
+  content: '';
+  width: 24px;
+  height: 1px;
+  background: var(--gold);
+}
+
+.mono { font-family: var(--font-mono); }
+.italic-flourish { font-family: var(--font-display); font-style: italic; font-weight: 400; }
+
+/* =========================================================
+   HEADER / NAV
+   ========================================================= */
+
+header {
+  position: sticky;
+  top: 0;
+  background: rgba(10, 22, 40, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 1.1rem 0;
+  z-index: 100;
+}
+
+.nav {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--bone);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.logo-mark {
+  width: 32px;
+  height: 32px;
+  color: var(--gold);
+}
+.logo-name {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+.logo-name small {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 400;
+  color: var(--gold);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 2.5rem;
+  list-style: none;
+}
+.nav-links a {
+  color: var(--fog-light);
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--gold); }
+
+.nav-cta {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+.btn {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.85rem 1.75rem;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  transition: all 0.2s ease;
+  letter-spacing: 0.01em;
+  position: relative;
+}
+
+.btn-primary {
+  background: var(--gold);
+  color: var(--bg-deep);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
+}
+.btn-primary:hover {
+  background: var(--gold-bright);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(212, 167, 82, 0.3), inset 0 1px 0 rgba(255,255,255,0.2);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--bone);
+  border-color: var(--border);
+}
+.btn-ghost:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.btn-lg {
+  padding: 1.1rem 2.25rem;
+  font-size: 1.05rem;
+}
+
+/* =========================================================
+   HERO SECTION
+   ========================================================= */
+
+.hero {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 5rem 2rem 6rem;
+  position: relative;
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: center;
+  position: relative;
+}
+
+.hero-text {
+  max-width: 560px;
+  animation: rise 1s ease-out both;
+}
+.hero-text .eyebrow { margin-bottom: 1.5rem; }
+.hero-text h1 {
+  margin-bottom: 1.5rem;
+}
+.hero-text h1 .italic-flourish {
+  color: var(--gold);
+  font-style: italic;
+  font-weight: 400;
+}
+.hero-text .sub {
+  font-size: 1.2rem;
+  color: var(--fog-light);
+  line-height: 1.55;
+  margin-bottom: 2.5rem;
+  font-weight: 300;
+}
+.hero-ctas {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 2.5rem;
+}
+
+.hero-signals {
+  display: flex;
+  gap: 2rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--border-subtle);
+}
+.signal-stat { }
+.signal-stat .num {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 500;
+  color: var(--gold);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.signal-stat .label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--fog);
+  margin-top: 0.35rem;
+}
+
+/* =========================================================
+   HERO VISUAL - The Whale with Scrolling Data
+   ========================================================= */
+
+.hero-visual {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  max-width: 560px;
+  animation: rise 1s ease-out 0.2s both;
+}
+
+.hero-whale-box {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(212, 167, 82, 0.04) 0%, transparent 60%),
+    linear-gradient(135deg, var(--surface) 0%, var(--bg) 100%);
+  overflow: hidden;
+}
+
+/* Corner brackets - chart paper framing */
+.chart-corners { position: absolute; inset: 0; pointer-events: none; }
+.chart-corner {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--gold);
+}
+.chart-corner.tl { top: 8px; left: 8px; border-right: none; border-bottom: none; }
+.chart-corner.tr { top: 8px; right: 8px; border-left: none; border-bottom: none; }
+.chart-corner.bl { bottom: 8px; left: 8px; border-right: none; border-top: none; }
+.chart-corner.br { bottom: 8px; right: 8px; border-left: none; border-top: none; }
+
+/* Depth sounding numbers scattered around */
+.depth-sounding {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--fog);
+  opacity: 0.4;
+}
+.ds-1 { top: 12%; left: 14%; }
+.ds-2 { top: 22%; right: 18%; }
+.ds-3 { bottom: 20%; left: 12%; }
+.ds-4 { bottom: 14%; right: 14%; }
+.ds-5 { top: 45%; left: 6%; }
+
+/* THE WHALE SILHOUETTE */
+.whale-container {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.whale-svg {
+  width: 90%;
+  height: auto;
+  filter: drop-shadow(0 0 30px rgba(212, 167, 82, 0.08));
+}
+
+/* The whale path is clipped; data stream scrolls INSIDE it */
+.whale-data-stream {
+  position: absolute;
+  inset: 8%;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  line-height: 1.7;
+  color: var(--gold);
+  opacity: 0.6;
+  overflow: hidden;
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 500 300'><path d='M50 170 Q80 110 150 100 Q220 90 280 105 Q340 120 400 110 L450 100 L440 130 L450 150 L430 155 L410 180 Q340 210 260 200 Q180 195 110 195 Q70 200 50 170 Z' fill='black'/></svg>");
+  -webkit-mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 500 300'><path d='M50 170 Q80 110 150 100 Q220 90 280 105 Q340 120 400 110 L450 100 L440 130 L450 150 L430 155 L410 180 Q340 210 260 200 Q180 195 110 195 Q70 200 50 170 Z' fill='black'/></svg>");
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+}
+
+.whale-data-stream-inner {
+  animation: datascroll 20s linear infinite;
+}
+
+@keyframes datascroll {
+  from { transform: translateY(0); }
+  to { transform: translateY(-50%); }
+}
+
+.placeholder-note {
+  position: absolute;
+  bottom: -2.2rem;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--fog);
+  opacity: 0.7;
+}
+
+/* =========================================================
+   LIVE DATA FEED (bottom of hero)
+   ========================================================= */
+
+.live-feed {
+  margin-top: 4rem;
+  border: 1px solid var(--border-subtle);
+  background: rgba(17, 29, 51, 0.5);
+  border-radius: var(--radius);
+  overflow: hidden;
+  position: relative;
+}
+
+.live-feed-header {
+  padding: 0.75rem 1.25rem;
+  background: rgba(0,0,0,0.3);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+.live-feed-header .title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--gold);
+}
+.live-feed-header .timestamp { color: var(--fog); }
+
+.pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 0 rgba(34, 211, 160, 0.6);
+  animation: pulse 1.8s infinite;
+}
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(34, 211, 160, 0.5); }
+  70% { box-shadow: 0 0 0 10px rgba(34, 211, 160, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 211, 160, 0); }
+}
+
+.live-feed-body {
+  height: 220px;
+  overflow: hidden;
+  position: relative;
+}
+
+.feed-row {
+  padding: 0.6rem 1.25rem;
+  border-bottom: 1px solid rgba(212, 167, 82, 0.06);
+  display: grid;
+  grid-template-columns: 90px 1fr 90px 110px 80px;
+  gap: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  align-items: center;
+  animation: feedRowIn 0.5s ease-out;
+}
+@keyframes feedRowIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.feed-row .platform {
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fog);
+}
+.feed-row .market-name {
+  color: var(--bone);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+}
+.feed-row .prob {
+  color: var(--fog-light);
+  font-size: 0.75rem;
+}
+.feed-row .prob .num { color: var(--bone); font-weight: 500; }
+.feed-row .edge {
+  text-align: right;
+  font-weight: 500;
+}
+.feed-row .edge.pos { color: var(--success); }
+.feed-row .edge.neg { color: var(--danger); opacity: 0.7; }
+.feed-row .edge.neutral { color: var(--fog); }
+.feed-row .verdict {
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: right;
+}
+.feed-row .verdict.buy { color: var(--success); }
+.feed-row .verdict.hold { color: var(--fog); }
+.feed-row .verdict.skip { color: var(--fog); opacity: 0.5; }
+.feed-row.edge-found {
+  background: linear-gradient(90deg, transparent 0%, rgba(212, 167, 82, 0.08) 100%);
+  border-left: 2px solid var(--gold);
+  padding-left: calc(1.25rem - 2px);
+}
+
+/* =========================================================
+   ORNAMENTAL DIVIDER
+   ========================================================= */
+
+.divider {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 4rem 2rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.divider-ornament {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+.divider-line {
+  width: 120px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-deep), transparent);
+}
+.divider-mark {
+  color: var(--gold);
+  font-size: 1.2rem;
+}
+
+/* =========================================================
+   SECTION WRAPPER
+   ========================================================= */
+
+section.content {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 5rem 2rem;
+}
+section.content .section-head {
+  text-align: center;
+  margin-bottom: 4rem;
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+}
+section.content .section-head .eyebrow { margin-bottom: 1.25rem; }
+section.content .section-head h2 { margin-bottom: 1rem; }
+section.content .section-head p {
+  color: var(--fog-light);
+  font-size: 1.1rem;
+  line-height: 1.65;
+  font-weight: 300;
+}
+
+/* =========================================================
+   HOW IT WORKS
+   ========================================================= */
+
+.howitworks {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  position: relative;
+}
+.how-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2.25rem 2rem;
+  position: relative;
+  transition: all 0.3s;
+}
+.how-card:hover {
+  border-color: var(--border-gold);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+}
+.how-card .step-num {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  font-family: var(--font-display);
+  font-size: 2.8rem;
+  font-style: italic;
+  color: var(--gold);
+  opacity: 0.4;
+  line-height: 1;
+  font-weight: 400;
+}
+.how-card .icon {
+  width: 40px;
+  height: 40px;
+  color: var(--gold);
+  margin-bottom: 1.5rem;
+}
+.how-card h3 { margin-bottom: 0.75rem; }
+.how-card p {
+  color: var(--fog-light);
+  font-size: 0.98rem;
+  line-height: 1.6;
+  font-weight: 300;
+}
+
+/* =========================================================
+   COMPARISON TABLE
+   ========================================================= */
+
+.comparison {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.comp-header {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1.2fr;
+  background: var(--bg-deep);
+  border-bottom: 1px solid var(--border);
+}
+.comp-header .comp-cell {
+  padding: 1.5rem 1.5rem 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--fog);
+  text-align: center;
+}
+.comp-header .comp-cell:first-child { text-align: left; }
+.comp-header .comp-cell.us {
+  color: var(--gold);
+  background: rgba(212, 167, 82, 0.04);
+  border-left: 1px solid var(--border-gold);
+  border-right: 1px solid var(--border-gold);
+}
+.comp-header .comp-cell .tier-label {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-style: normal;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: inherit;
+  display: block;
+  margin-bottom: 4px;
+}
+.comp-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1.2fr;
+  border-bottom: 1px solid rgba(212, 167, 82, 0.06);
+}
+.comp-row:last-child { border-bottom: none; }
+.comp-row .comp-cell {
+  padding: 1rem 1.5rem;
+  text-align: center;
+  font-size: 0.92rem;
+  color: var(--fog-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.comp-row .comp-cell:first-child {
+  text-align: left;
+  justify-content: flex-start;
+  color: var(--bone);
+  font-weight: 500;
+}
+.comp-row .comp-cell.us {
+  color: var(--bone);
+  background: rgba(212, 167, 82, 0.04);
+  border-left: 1px solid var(--border-gold);
+  border-right: 1px solid var(--border-gold);
+  font-weight: 500;
+}
+.comp-row:last-child .comp-cell.us {
+  border-bottom: 1px solid var(--border-gold);
+}
+.comp-row:nth-child(2) .comp-cell.us {
+  border-top: 1px solid var(--border-gold);
+}
+
+.check { color: var(--success); font-size: 1.2rem; }
+.xmark { color: var(--fog); opacity: 0.4; font-size: 1.1rem; }
+
+/* =========================================================
+   PRICING
+   ========================================================= */
+
+.billing-toggle {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 3rem;
+  gap: 0.75rem;
+  align-items: center;
+}
+.toggle-wrap {
+  display: inline-flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px;
+  position: relative;
+}
+.toggle-option {
+  padding: 0.6rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--fog);
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-family: var(--font-body);
+}
+.toggle-option.active {
+  background: var(--gold);
+  color: var(--bg-deep);
+}
+.annual-save {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--success);
+  margin-left: 1rem;
+  padding: 4px 10px;
+  border: 1px solid var(--success-deep);
+  border-radius: 3px;
+  background: rgba(34, 211, 160, 0.08);
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+.price-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2.5rem 2rem 2rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s;
+}
+.price-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+}
+.price-card.featured {
+  border-color: var(--gold);
+  box-shadow: var(--shadow-gold);
+}
+.price-card.featured::before {
+  content: 'MOST POPULAR';
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--gold);
+  color: var(--bg-deep);
+  padding: 4px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  border-radius: 3px;
+}
+.price-card .tier-name {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+.price-card .tier-subtitle {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: 0.95rem;
+  color: var(--fog);
+  margin-bottom: 2rem;
+  font-weight: 300;
+  font-family: var(--font-display);
+}
+.price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  margin-bottom: 0.25rem;
+}
+.price-amount {
+  font-family: var(--font-display);
+  font-size: 3.5rem;
+  font-weight: 500;
+  color: var(--bone);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.price-currency {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--fog);
+  font-weight: 400;
+}
+.price-period {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--fog);
+  letter-spacing: 0.05em;
+}
+.price-annual-note {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--success);
+  margin-bottom: 2rem;
+  display: none;
+}
+.price-annual-note.visible { display: block; }
+.price-monthly-note {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--fog);
+  margin-bottom: 2rem;
+  display: block;
+  opacity: 0.6;
+}
+.price-monthly-note.hidden { display: none; }
+
+.price-features {
+  list-style: none;
+  margin-bottom: 2rem;
+  flex: 1;
+}
+.price-features li {
+  padding: 0.7rem 0;
+  font-size: 0.95rem;
+  color: var(--fog-light);
+  border-bottom: 1px solid rgba(212, 167, 82, 0.06);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  line-height: 1.4;
+}
+.price-features li::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gold);
+  margin-top: 0.55rem;
+  flex-shrink: 0;
+}
+.price-features li:last-child { border-bottom: none; }
+.price-card .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* =========================================================
+   MILESTONE / SHIP PROGRESS BAR
+   ========================================================= */
+
+.milestone-section {
+  padding: 5rem 2rem;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.milestone-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 3rem 3rem 2rem;
+  position: relative;
+  overflow: hidden;
+}
+.milestone-bar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, transparent 60%, rgba(10, 22, 40, 0.4) 100%);
+  pointer-events: none;
+}
+.milestone-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 2rem;
+}
+.milestone-head h3 {
+  font-size: 1.5rem;
+  margin-bottom: 0.3rem;
+}
+.milestone-head .current {
+  font-family: var(--font-mono);
+  color: var(--gold);
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+}
+.milestone-head .target {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  color: var(--gold);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.ocean-track {
+  height: 80px;
+  position: relative;
+  margin: 1rem 0;
+}
+.ocean-line {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border-gold), var(--gold-deep), var(--border-gold));
+}
+.ocean-waves {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 18px;
+  opacity: 0.3;
+}
+
+.milestone-islands {
+  position: relative;
+  height: 100%;
+}
+.island {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+.island .dot {
+  width: 9px;
+  height: 9px;
+  background: var(--gold-deep);
+  border: 2px solid var(--gold);
+  border-radius: 50%;
+}
+.island .dot.reached {
+  background: var(--gold);
+  box-shadow: 0 0 15px rgba(212, 167, 82, 0.5);
+}
+.island .label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fog);
+  white-space: nowrap;
+  position: absolute;
+  top: 20px;
+}
+.island.s1 { left: 5%; }
+.island.s2 { left: 27%; }
+.island.s3 { left: 52%; }
+.island.s4 { left: 75%; }
+.island.s5 { left: 97%; }
+
+.ship {
+  position: absolute;
+  top: 50%;
+  left: 18%;
+  transform: translate(-50%, -75%);
+  width: 48px;
+  height: 48px;
+  color: var(--gold-bright);
+  animation: bob 4s ease-in-out infinite;
+  filter: drop-shadow(0 2px 8px rgba(212, 167, 82, 0.4));
+  z-index: 3;
+}
+@keyframes bob {
+  0%, 100% { transform: translate(-50%, -75%); }
+  50% { transform: translate(-50%, -68%); }
+}
+
+.milestone-caption {
+  margin-top: 3rem;
+  font-family: var(--font-display);
+  font-style: italic;
+  text-align: center;
+  color: var(--fog);
+  font-size: 1.05rem;
+}
+
+/* =========================================================
+   FAQ
+   ========================================================= */
+
+.faq-list {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.faq-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border 0.2s;
+}
+.faq-item:hover { border-color: var(--border-gold); }
+.faq-q {
+  padding: 1.4rem 1.75rem;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  list-style: none;
+  color: var(--bone);
+}
+.faq-q::-webkit-details-marker { display: none; }
+.faq-q::after {
+  content: '+';
+  color: var(--gold);
+  font-family: var(--font-mono);
+  font-size: 1.3rem;
+  transition: transform 0.2s;
+}
+.faq-item[open] .faq-q::after { content: '−'; }
+.faq-a {
+  padding: 0 1.75rem 1.5rem;
+  color: var(--fog-light);
+  font-size: 0.98rem;
+  line-height: 1.7;
+  font-weight: 300;
+}
+
+/* =========================================================
+   FOOTER
+   ========================================================= */
+
+footer {
+  border-top: 1px solid var(--border);
+  margin-top: 6rem;
+  padding: 3rem 2rem 2.5rem;
+  background: var(--bg-deep);
+}
+.footer-wrap {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 3rem;
+  margin-bottom: 3rem;
+}
+.footer-brand p {
+  margin-top: 1rem;
+  color: var(--fog);
+  font-size: 0.9rem;
+  max-width: 340px;
+  line-height: 1.65;
+  font-weight: 300;
+}
+.footer-col h4 {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 1.25rem;
+  font-weight: 500;
+}
+.footer-col ul { list-style: none; }
+.footer-col li {
+  padding: 0.4rem 0;
+}
+.footer-col a {
+  color: var(--fog-light);
+  text-decoration: none;
+  font-size: 0.92rem;
+  transition: color 0.2s;
+}
+.footer-col a:hover { color: var(--gold); }
+
+.footer-bottom {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--fog);
+}
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--success);
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+.status-badge:hover { opacity: 0.7; }
+.status-badge .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: pulse 1.8s infinite;
+}
+
+/* =========================================================
+   ANIMATIONS
+   ========================================================= */
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.8s ease, transform 0.8s ease; }
+.reveal.visible { opacity: 1; transform: translateY(0); }
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 900px) {
+  .hero-grid { grid-template-columns: 1fr; gap: 3rem; }
+  .hero-visual { max-width: 420px; margin: 0 auto; }
+  .howitworks, .pricing-grid { grid-template-columns: 1fr; }
+  .comp-header, .comp-row { grid-template-columns: 1.5fr 1fr 1fr 1fr; font-size: 0.8rem; }
+  .nav-links { display: none; }
+  .footer-wrap { grid-template-columns: 1fr 1fr; }
+  .milestone-bar { padding: 2rem 1.5rem 1.5rem; }
+  .island.s2 .label, .island.s4 .label { display: none; }
+}
+
+@media (max-width: 600px) {
+  .hero { padding: 3rem 1.25rem 4rem; }
+  section.content { padding: 3.5rem 1.25rem; }
+  .hero-signals { gap: 1.5rem; flex-wrap: wrap; }
+  .hero-ctas { flex-direction: column; align-items: stretch; }
+  .hero-ctas .btn { width: 100%; justify-content: center; }
+  .footer-wrap { grid-template-columns: 1fr; gap: 2rem; }
+  .footer-bottom { flex-direction: column; gap: 1rem; text-align: center; }
+  .comp-header .comp-cell, .comp-row .comp-cell { padding: 0.8rem 0.6rem; font-size: 0.75rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- =========================================================
+     HEADER
+     ========================================================= -->
+<header>
+  <nav class="nav">
+    <a href="/" class="logo">
+      <svg class="logo-mark" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="1.2"/>
+        <circle cx="16" cy="16" r="9" stroke="currentColor" stroke-width="0.7" opacity="0.5"/>
+        <path d="M16 2 L17 15 L16 16 L15 15 Z" fill="currentColor"/>
+        <path d="M16 30 L15 17 L16 16 L17 17 Z" fill="currentColor" opacity="0.5"/>
+        <path d="M2 16 L15 15 L16 16 L15 17 Z" fill="currentColor" opacity="0.7"/>
+        <path d="M30 16 L17 17 L16 16 L17 15 Z" fill="currentColor" opacity="0.7"/>
+        <circle cx="16" cy="16" r="2" fill="currentColor"/>
+      </svg>
+      <span class="logo-name">
+        Harpoon Cannon
+        <small>Intelligence</small>
+      </span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#how">How It Works</a></li>
+      <li><a href="#comparison">Compare</a></li>
+      <li><a href="#pricing">Pricing</a></li>
+      <li><a href="#faq">FAQ</a></li>
+    </ul>
+    <div class="nav-cta">
+      <a href="/login" class="btn btn-ghost">Sign In</a>
+      <a href="#pricing" class="btn btn-primary">Board The Pequod</a>
+    </div>
+  </nav>
+</header>
+
+<!-- =========================================================
+     HERO
+     ========================================================= -->
+<main>
+<section class="hero">
+
+  <div class="hero-grid">
+    <div class="hero-text">
+      <span class="eyebrow">Prediction Market Intelligence</span>
+      <h1>Everyone else is guessing. <span class="italic-flourish">You're going to stop.</span></h1>
+      <p class="sub">Harpoon Cannon Intelligence analyzes every Kalshi and Polymarket contract across 8 research signals, bilateral probability math, and real-time insider pattern detection. You see the edge before the market corrects.</p>
+      <div class="hero-ctas">
+        <a href="#pricing" class="btn btn-primary btn-lg">
+          Start Investing, Not Gambling
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <a href="#how" class="btn btn-ghost btn-lg">See How It Works</a>
+      </div>
+
+      <div class="hero-signals">
+        <div class="signal-stat">
+          <div class="num">8</div>
+          <div class="label">Research Signals</div>
+        </div>
+        <div class="signal-stat">
+          <div class="num">2</div>
+          <div class="label">Platforms Monitored</div>
+        </div>
+        <div class="signal-stat">
+          <div class="num">60s</div>
+          <div class="label">Poll Cycle</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HERO VISUAL: Whale silhouette filled with scrolling market data -->
+    <div class="hero-visual">
+      <div class="hero-whale-box">
+        <div class="chart-corners">
+          <div class="chart-corner tl"></div>
+          <div class="chart-corner tr"></div>
+          <div class="chart-corner bl"></div>
+          <div class="chart-corner br"></div>
+        </div>
+        <span class="depth-sounding ds-1">42 ft</span>
+        <span class="depth-sounding ds-2">118 ft</span>
+        <span class="depth-sounding ds-3">76 ft</span>
+        <span class="depth-sounding ds-4">203 ft</span>
+        <span class="depth-sounding ds-5">N 41° 25'</span>
+
+        <!-- Data streaming inside the whale shape (via CSS mask) -->
+        <div class="whale-data-stream">
+          <div class="whale-data-stream-inner" id="whale-stream">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Whale silhouette outline on top -->
+        <div class="whale-container">
+          <svg class="whale-svg" viewBox="0 0 500 300" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="whale-grad" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0" stop-color="#D4A752" stop-opacity="0.9"/>
+                <stop offset="1" stop-color="#A07E2E" stop-opacity="0.5"/>
+              </linearGradient>
+            </defs>
+            <!-- Whale outline - stylized woodcut silhouette -->
+            <path d="M50 170 Q80 110 150 100 Q220 90 280 105 Q340 120 400 110 L450 100 L440 130 L450 150 L430 155 L410 180 Q340 210 260 200 Q180 195 110 195 Q70 200 50 170 Z"
+                  fill="none"
+                  stroke="url(#whale-grad)"
+                  stroke-width="1.5"/>
+            <!-- Eye -->
+            <circle cx="390" cy="130" r="3" fill="#D4A752" opacity="0.8"/>
+            <!-- Mouth line -->
+            <path d="M430 155 Q440 160 450 150" fill="none" stroke="#D4A752" stroke-width="1" opacity="0.6"/>
+            <!-- Tail flukes -->
+            <path d="M50 170 Q30 150 20 120 M50 170 Q30 190 20 220" fill="none" stroke="#D4A752" stroke-width="1.2" opacity="0.7"/>
+          </svg>
+        </div>
+      </div>
+      <div class="placeholder-note">Placeholder · Commissioned Rockwell Kent-style woodcut whale slots here</div>
+    </div>
+  </div>
+
+  <!-- LIVE DATA FEED -->
+  <div class="live-feed">
+    <div class="live-feed-header">
+      <span class="title"><span class="pulse-dot"></span> Live Analysis Stream</span>
+      <span class="timestamp" id="feed-clock">UTC --:--:--</span>
+    </div>
+    <div class="live-feed-body" id="feed-body"></div>
+  </div>
+
+</section>
+</main>
+
+<!-- Ornamental divider -->
+<div class="divider">
+  <div class="divider-ornament">
+    <div class="divider-line"></div>
+    <div class="divider-mark">✦</div>
+    <div class="divider-line"></div>
+  </div>
+</div>
+
+<!-- =========================================================
+     HOW IT WORKS
+     ========================================================= -->
+<section class="content reveal" id="how">
+  <div class="section-head">
+    <span class="eyebrow">The Method</span>
+    <h2>Three stages. One edge.</h2>
+    <p>We don't predict the future. We find the contracts where the market is wrong RIGHT NOW, and tell you exactly why.</p>
+  </div>
+
+  <div class="howitworks">
+    <div class="how-card">
+      <span class="step-num">I</span>
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+        <circle cx="11" cy="11" r="7"/>
+        <path d="M21 21l-4.3-4.3M11 7v4l3 2"/>
+      </svg>
+      <h3>Monitor</h3>
+      <p>Every 60 seconds we pull every contract on Kalshi and Polymarket. Snapshot prices. Flag volume anomalies. Tag political relevance. Detect the whale before the wake.</p>
+    </div>
+
+    <div class="how-card">
+      <span class="step-num">II</span>
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+        <circle cx="12" cy="12" r="3"/>
+      </svg>
+      <h3>Analyze</h3>
+      <p>Two-stage AI pipeline. Researcher gathers PRO and CON evidence with live web search, grades each source A through D. Analyst scores true probability, writes rationale, identifies risk.</p>
+    </div>
+
+    <div class="how-card">
+      <span class="step-num">III</span>
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+        <path d="M6 2L2 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-4-4H6z"/>
+        <path d="M2 6h20M10 12l2 2 4-4"/>
+      </svg>
+      <h3>Deliver</h3>
+      <p>Only contracts with quantified edge become picks. Ranked, sorted, gated by tier. Full rationale. Evidence grades. Risk factors. You decide. You harpoon.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Ornamental divider -->
+<div class="divider">
+  <div class="divider-ornament">
+    <div class="divider-line"></div>
+    <div class="divider-mark">✦</div>
+    <div class="divider-line"></div>
+  </div>
+</div>
+
+<!-- =========================================================
+     COMPARISON
+     ========================================================= -->
+<section class="content reveal" id="comparison">
+  <div class="section-head">
+    <span class="eyebrow">The Landscape</span>
+    <h2>What other tools give you. What we give you.</h2>
+    <p>The free tools stop at surface signals. The expensive data terminals drown you in raw numbers. Nobody else tells you what the data actually means.</p>
+  </div>
+
+  <div class="comparison">
+    <div class="comp-header">
+      <div class="comp-cell">Capability</div>
+      <div class="comp-cell"><span class="tier-label">Free Tools</span>$0</div>
+      <div class="comp-cell"><span class="tier-label">Data Terminals</span>$30–100</div>
+      <div class="comp-cell us"><span class="tier-label">Harpoon Cannon</span>$29</div>
+    </div>
+    <div class="comp-row">
+      <div class="comp-cell">Probability scoring</div>
+      <div class="comp-cell"><span class="check">✓</span></div>
+      <div class="comp-cell"><span class="xmark">—</span></div>
+      <div class="comp-cell us"><span class="check">✓</span></div>
+    </div>
+    <div class="comp-row">
+      <div class="comp-cell">Written rationale for every pick</div>
+      <div class="comp-cell"><span class="xmark">—</span></div>
+      <div class="comp-cell"><span class="xmark">—</span></div>
+      <div class="comp-cell us"><span class="check">✓</span></div>
+    </div>
+    <div class="comp-row">
+      <div class="comp-cell">Evidence graded A through D</div>
+      <div class="comp-cell"><span class="xmark">—</span></div>
+      <div class="comp-cell"><span class="xmark">—</span></div>
+      <div class="comp-cell us"><span class="check">✓</span></div>
+    </div>
+    <div class="comp-row">
+      <div class="comp-cell">Political nexus scoring</div>
+      <div class="comp-cell"><span class="xmark">—</span></div>
+      <div class="comp-cell"><span class="xmark">—</span></div>
+      <div class="comp-cell us"><span class="check">✓</span></div>
+    </div>
+    <div class="comp-row">
+      <div class="comp-cell">Live web search per pick</div>
+      <div class="comp-cell"><span class="xmark">—</span></div>
+      <div class="comp-cell"><span class="xmark">—</span></div>
+      <div class="comp-cell us"><span class="check">✓</span></div>
+    </div>
+    <div class="comp-row">
+      <div class="comp-cell">Whale alert detection</div>
+      <div class="comp-cell"><span class="xmark">—</span></div>
+      <div class="comp-cell"><span class="check">✓</span></div>
+      <div class="comp-cell us"><span class="check">✓</span></div>
+    </div>
+    <div class="comp-row">
+      <div class="comp-cell">Adversarial verdict system</div>
+      <div class="comp-cell"><span class="xmark">—</span></div>
+      <div class="comp-cell"><span class="xmark">—</span></div>
+      <div class="comp-cell us"><span class="check">✓</span></div>
+    </div>
+    <div class="comp-row">
+      <div class="comp-cell">Bring your own AI key</div>
+      <div class="comp-cell"><span class="xmark">—</span></div>
+      <div class="comp-cell"><span class="xmark">—</span></div>
+      <div class="comp-cell us"><span class="check">✓</span></div>
+    </div>
+    <div class="comp-row">
+      <div class="comp-cell">Dual platform coverage</div>
+      <div class="comp-cell"><span class="xmark">—</span></div>
+      <div class="comp-cell"><span class="check">✓</span></div>
+      <div class="comp-cell us"><span class="check">✓</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- Ornamental divider -->
+<div class="divider">
+  <div class="divider-ornament">
+    <div class="divider-line"></div>
+    <div class="divider-mark">✦</div>
+    <div class="divider-line"></div>
+  </div>
+</div>
+
+<!-- =========================================================
+     PRICING
+     ========================================================= -->
+<section class="content reveal" id="pricing">
+  <div class="section-head">
+    <span class="eyebrow">Board The Pequod</span>
+    <h2>Three ranks. One crew.</h2>
+    <p>No free tier. No trial. The confidence is the pitch. $29 a month is less than one bad trade. One good edge pays for a year.</p>
+  </div>
+
+  <div class="billing-toggle">
+    <div class="toggle-wrap">
+      <button class="toggle-option" data-period="monthly">Monthly</button>
+      <button class="toggle-option active" data-period="annual">Annual</button>
+    </div>
+    <span class="annual-save">Save 17%</span>
+  </div>
+
+  <div class="pricing-grid">
+    <div class="price-card">
+      <div class="tier-name">Harpooner</div>
+      <div class="tier-subtitle">Your first throw.</div>
+      <div class="price-row">
+        <span class="price-currency">$</span>
+        <span class="price-amount" data-monthly="29" data-annual="24">24</span>
+        <span class="price-period">/month</span>
+      </div>
+      <div class="price-annual-note visible" data-monthly="false">$290 billed annually</div>
+      <div class="price-monthly-note hidden" data-monthly="true">$29 billed monthly</div>
+      <ul class="price-features">
+        <li>Top 25 ranked investment signals</li>
+        <li>Full AI rationale on every pick</li>
+        <li>Evidence graded A through D</li>
+        <li>Whale alert notifications</li>
+        <li>Crowd intelligence signals</li>
+        <li>Discord alerts</li>
+        <li>30 days of pick history</li>
+      </ul>
+      <a href="#" class="btn btn-ghost">Board The Pequod</a>
+    </div>
+
+    <div class="price-card featured">
+      <div class="tier-name">First Mate</div>
+      <div class="tier-subtitle">The officer's deck.</div>
+      <div class="price-row">
+        <span class="price-currency">$</span>
+        <span class="price-amount" data-monthly="99" data-annual="82">82</span>
+        <span class="price-period">/month</span>
+      </div>
+      <div class="price-annual-note visible" data-monthly="false">$990 billed annually</div>
+      <div class="price-monthly-note hidden" data-monthly="true">$99 billed monthly</div>
+      <ul class="price-features">
+        <li>Top 50 ranked signals across deeper pool</li>
+        <li>~200 markets analyzed per cycle</li>
+        <li>The Courtroom adversarial trial</li>
+        <li>150 Intelligence Credits per month</li>
+        <li>Bring Your Own AI key</li>
+        <li>Discord + Telegram + email</li>
+        <li>Unlimited history, unlimited watchlist</li>
+      </ul>
+      <a href="#" class="btn btn-primary">Board The Pequod</a>
+    </div>
+
+    <div class="price-card">
+      <div class="tier-name">Ahab</div>
+      <div class="tier-subtitle">The captain's chair.</div>
+      <div class="price-row">
+        <span class="price-currency">$</span>
+        <span class="price-amount" data-monthly="299" data-annual="249">249</span>
+        <span class="price-period">/month</span>
+      </div>
+      <div class="price-annual-note visible" data-monthly="false">$2,990 billed annually</div>
+      <div class="price-monthly-note hidden" data-monthly="true">$299 billed monthly</div>
+      <ul class="price-features">
+        <li>Every market. Every signal. No limits.</li>
+        <li>500 Intelligence Credits per month</li>
+        <li>Custom alert rules</li>
+        <li>Priority execution queue</li>
+        <li>SMS + all other channels</li>
+        <li>Automated execution (Phase 3)</li>
+        <li>Full API access (Phase 3)</li>
+      </ul>
+      <a href="#" class="btn btn-ghost">Board The Pequod</a>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================
+     MILESTONE / SHIP PROGRESS
+     ========================================================= -->
+<section class="milestone-section reveal">
+  <div class="milestone-bar">
+    <div class="milestone-head">
+      <div>
+        <h3>The Pequod Fleet</h3>
+        <div class="current mono">MRR · $2,247 of $5,000</div>
+      </div>
+      <div class="target">45%</div>
+    </div>
+
+    <div class="ocean-track">
+      <div class="ocean-line"></div>
+
+      <svg class="ocean-waves" viewBox="0 0 1200 20" preserveAspectRatio="none">
+        <path d="M0 10 Q60 5 120 10 T240 10 T360 10 T480 10 T600 10 T720 10 T840 10 T960 10 T1080 10 T1200 10" stroke="#D4A752" stroke-width="0.5" fill="none"/>
+        <path d="M0 14 Q60 9 120 14 T240 14 T360 14 T480 14 T600 14 T720 14 T840 14 T960 14 T1080 14 T1200 14" stroke="#D4A752" stroke-width="0.5" fill="none" opacity="0.6"/>
+      </svg>
+
+      <div class="milestone-islands">
+        <div class="island s1">
+          <div class="dot reached"></div>
+          <div class="label">Cast Off · $0</div>
+        </div>
+        <div class="island s2">
+          <div class="dot reached"></div>
+          <div class="label">$1K MRR</div>
+        </div>
+        <div class="island s3">
+          <div class="dot"></div>
+          <div class="label">$5K · First Mate</div>
+        </div>
+        <div class="island s4">
+          <div class="dot"></div>
+          <div class="label">$15K</div>
+        </div>
+        <div class="island s5">
+          <div class="dot"></div>
+          <div class="label">$50K · Ahab</div>
+        </div>
+
+        <!-- The Ship -->
+        <svg class="ship" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Sail -->
+          <path d="M24 6 L24 26 M24 8 L14 22 L24 22 Z M24 8 L34 22 L24 22 Z" fill="currentColor" opacity="0.9"/>
+          <!-- Hull -->
+          <path d="M8 30 L40 30 L36 38 L12 38 Z" fill="currentColor"/>
+          <!-- Waterline -->
+          <path d="M4 40 Q12 38 24 40 T44 40" stroke="currentColor" stroke-width="0.8" fill="none" opacity="0.5"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="milestone-caption">
+      <em>Every ship we recruit makes the fleet's intelligence sharper.</em>
+    </div>
+  </div>
+</section>
+
+<!-- Ornamental divider -->
+<div class="divider">
+  <div class="divider-ornament">
+    <div class="divider-line"></div>
+    <div class="divider-mark">✦</div>
+    <div class="divider-line"></div>
+  </div>
+</div>
+
+<!-- =========================================================
+     FAQ
+     ========================================================= -->
+<section class="content reveal" id="faq">
+  <div class="section-head">
+    <span class="eyebrow">Questions Worth Answering</span>
+    <h2>The short version.</h2>
+  </div>
+
+  <div class="faq-list">
+    <details class="faq-item">
+      <summary class="faq-q">Why no free trial?</summary>
+      <div class="faq-a">The confidence is the pitch. A free trial tells you the product is unsure of its own value. We're not. $29 per month is less than one bad trade. If a single edge we surface doesn't pay for the year, we are not doing our job.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">What does "quantified edge" actually mean?</summary>
+      <div class="faq-a">Our AI calculates true_probability for a contract. The market shows you its implied probability (the price). Edge is the gap. If our analysis says YES is 68% likely and the market is pricing YES at 45%, that's a 23-point edge. You get the number, the direction, and the written reasoning behind it.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">Is this legal?</summary>
+      <div class="faq-a">We don't place bets for you. We don't give financial advice. We're an analysis tool. You make your own decisions on Kalshi or Polymarket. Both platforms are CFTC-regulated (Kalshi) or operate as information markets (Polymarket). Your jurisdiction and tax situation are yours to manage.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">What's the accuracy rate?</summary>
+      <div class="faq-a">We publish our accuracy dashboard to every First Mate and Ahab subscriber. Post-launch we show the real numbers, updated daily, with no cherry-picking. If the system isn't working, you'll see it in the data before we do. If it is, you'll see that too.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">Bring Your Own AI?</summary>
+      <div class="faq-a">First Mate and Ahab can plug in an OpenAI, Anthropic, or OpenRouter API key. Our picks, our prompts, your tokens. 300 queries per day. Zero cost to us, zero cost to you beyond what your provider charges. We built this because power users wanted it.</div>
+    </details>
+  </div>
+</section>
+
+<!-- =========================================================
+     FOOTER
+     ========================================================= -->
+<footer>
+  <div class="footer-wrap">
+    <div class="footer-brand">
+      <a href="/" class="logo">
+        <svg class="logo-mark" viewBox="0 0 32 32" fill="none">
+          <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="1.2"/>
+          <circle cx="16" cy="16" r="9" stroke="currentColor" stroke-width="0.7" opacity="0.5"/>
+          <path d="M16 2 L17 15 L16 16 L15 15 Z" fill="currentColor"/>
+          <path d="M16 30 L15 17 L16 16 L17 17 Z" fill="currentColor" opacity="0.5"/>
+          <path d="M2 16 L15 15 L16 16 L15 17 Z" fill="currentColor" opacity="0.7"/>
+          <path d="M30 16 L17 17 L16 16 L17 15 Z" fill="currentColor" opacity="0.7"/>
+          <circle cx="16" cy="16" r="2" fill="currentColor"/>
+        </svg>
+        <span class="logo-name">
+          Harpoon Cannon
+          <small>Intelligence</small>
+        </span>
+      </a>
+      <p>Prediction market intelligence, built by traders who got tired of guessing.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Product</h4>
+      <ul>
+        <li><a href="#how">How It Works</a></li>
+        <li><a href="#pricing">Pricing</a></li>
+        <li><a href="#comparison">Compare</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Company</h4>
+      <ul>
+        <li><a href="#">About</a></li>
+        <li><a href="#">Affiliate Program</a></li>
+        <li><a href="#">Contact</a></li>
+        <li><a href="#">Blog</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Legal</h4>
+      <ul>
+        <li><a href="#">Terms of Service</a></li>
+        <li><a href="#">Privacy Policy</a></li>
+        <li><a href="#">Disclaimer</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 Harpoon Cannon · Not financial advice · Not a broker</span>
+    <a href="/status" class="status-badge" title="This links to /status which only works when deployed">
+      <span class="dot"></span>
+      System Status · Operational
+    </a>
+  </div>
+</footer>
+
+<script>
+/* =========================================================
+   LIVE FEED: markets being analyzed in real time
+   ========================================================= */
+
+const MARKETS = [
+  { platform: 'KALSHI', name: 'Trump approval rating above 45% by March 31', prob: 62, edge: 14, verdict: 'BUY' },
+  { platform: 'POLYMARKET', name: 'Fed cuts rates at next FOMC meeting', prob: 34, edge: -7, verdict: 'HOLD' },
+  { platform: 'KALSHI', name: 'Bitcoin closes above $95K on Friday', prob: 71, edge: 23, verdict: 'BUY' },
+  { platform: 'POLYMARKET', name: 'NYC snowfall exceeds 12" in Feb', prob: 48, edge: 3, verdict: 'HOLD' },
+  { platform: 'KALSHI', name: 'GDP Q4 advance above 2.5%', prob: 58, edge: 11, verdict: 'BUY' },
+  { platform: 'POLYMARKET', name: 'ETH/BTC ratio exceeds 0.04 by Q2', prob: 41, edge: -2, verdict: 'SKIP' },
+  { platform: 'KALSHI', name: 'CPI YoY reading below 3.0% next release', prob: 67, edge: 18, verdict: 'BUY' },
+  { platform: 'POLYMARKET', name: 'Supreme Court rules on major case by June', prob: 73, edge: 8, verdict: 'HOLD' },
+  { platform: 'KALSHI', name: 'Unemployment rate above 4.2% next report', prob: 29, edge: -4, verdict: 'SKIP' },
+  { platform: 'POLYMARKET', name: 'Tesla delivers more than 500K Q1 vehicles', prob: 55, edge: 16, verdict: 'BUY' },
+  { platform: 'KALSHI', name: 'Mortgage rates drop below 6.5% in 30 days', prob: 44, edge: 9, verdict: 'HOLD' },
+  { platform: 'POLYMARKET', name: 'AI breakthrough announced by major lab', prob: 81, edge: 21, verdict: 'BUY' },
+  { platform: 'KALSHI', name: 'Oil WTI closes above $80 this week', prob: 39, edge: -3, verdict: 'SKIP' },
+  { platform: 'POLYMARKET', name: 'Nvidia earnings beat consensus by 10%+', prob: 64, edge: 13, verdict: 'BUY' },
+  { platform: 'KALSHI', name: 'Hurricane landfall in US by May', prob: 12, edge: 2, verdict: 'HOLD' }
+];
+
+const feedBody = document.getElementById('feed-body');
+const MAX_ROWS = 5;
+
+function createRow(m) {
+  const row = document.createElement('div');
+  row.className = 'feed-row';
+  if (m.edge >= 15) row.classList.add('edge-found');
+
+  const edgeClass = m.edge >= 10 ? 'pos' : m.edge <= -5 ? 'neg' : 'neutral';
+  const edgeSign = m.edge > 0 ? '+' : '';
+  const verdictClass = m.verdict.toLowerCase();
+
+  row.innerHTML = `
+    <span class="platform">${m.platform}</span>
+    <span class="market-name">${m.name}</span>
+    <span class="prob"><span class="num">${m.prob}%</span> true</span>
+    <span class="edge ${edgeClass}">${edgeSign}${m.edge} edge</span>
+    <span class="verdict ${verdictClass}">${m.verdict}</span>
+  `;
+  return row;
+}
+
+let shuffled = [...MARKETS].sort(() => Math.random() - 0.5);
+let feedIndex = 0;
+
+// Seed initial rows
+for (let i = 0; i < MAX_ROWS; i++) {
+  feedBody.appendChild(createRow(shuffled[i]));
+}
+feedIndex = MAX_ROWS;
+
+function pushFeedRow() {
+  const market = shuffled[feedIndex % shuffled.length];
+  feedIndex++;
+  if (feedIndex % shuffled.length === 0) {
+    shuffled = [...MARKETS].sort(() => Math.random() - 0.5);
+  }
+  const row = createRow(market);
+  feedBody.prepend(row);
+  if (feedBody.children.length > MAX_ROWS) {
+    const oldest = feedBody.lastChild;
+    oldest.style.opacity = '0';
+    oldest.style.transform = 'translateY(10px)';
+    setTimeout(() => oldest.remove(), 400);
+  }
+}
+
+setInterval(pushFeedRow, 2400);
+
+/* Clock */
+function updateClock() {
+  const d = new Date();
+  const h = String(d.getUTCHours()).padStart(2, '0');
+  const m = String(d.getUTCMinutes()).padStart(2, '0');
+  const s = String(d.getUTCSeconds()).padStart(2, '0');
+  document.getElementById('feed-clock').textContent = `UTC ${h}:${m}:${s}`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+/* =========================================================
+   WHALE DATA STREAM (inside the whale silhouette)
+   ========================================================= */
+
+const whaleStream = document.getElementById('whale-stream');
+const dataLines = [
+  'TRUMP-APPROVAL-Q1 .... 0.62 true .... +14 edge',
+  'BTC-95K-FRIDAY ....... 0.71 true .... +23 edge',
+  'FED-RATE-CUT-FOMC .... 0.34 true .... -07 edge',
+  'GDP-Q4-ADVANCE ....... 0.58 true .... +11 edge',
+  'CPI-UNDER-3 .......... 0.67 true .... +18 edge',
+  'NVDA-EARNINGS-BEAT ... 0.64 true .... +13 edge',
+  'SCOTUS-RULING-Q2 ..... 0.73 true .... +08 edge',
+  'TSLA-Q1-DELIVERIES ... 0.55 true .... +16 edge',
+  'AI-BREAKTHROUGH ...... 0.81 true .... +21 edge',
+  'MORTGAGE-6.5 ......... 0.44 true .... +09 edge',
+  'OIL-WTI-80 ........... 0.39 true .... -03 edge',
+  'UNEMP-4.2 ............ 0.29 true .... -04 edge',
+  'ETH-BTC-0.04 ......... 0.41 true .... -02 edge',
+  'SNOWFALL-NYC ......... 0.48 true .... +03 edge',
+  'HURRICANE-US-MAY ..... 0.12 true .... +02 edge',
+];
+const streamContent = [...dataLines, ...dataLines].join('\n');
+whaleStream.textContent = streamContent;
+
+/* =========================================================
+   BILLING TOGGLE
+   ========================================================= */
+
+const toggleButtons = document.querySelectorAll('.toggle-option');
+toggleButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const period = btn.dataset.period;
+    toggleButtons.forEach(b => b.classList.toggle('active', b === btn));
+
+    document.querySelectorAll('.price-amount').forEach(el => {
+      el.textContent = period === 'annual' ? el.dataset.annual : el.dataset.monthly;
+    });
+    document.querySelectorAll('[data-monthly="false"]').forEach(el => {
+      el.classList.toggle('visible', period === 'annual');
+    });
+    document.querySelectorAll('[data-monthly="true"]').forEach(el => {
+      el.classList.toggle('hidden', period === 'annual');
+    });
+    document.querySelector('.annual-save').style.opacity = period === 'annual' ? '1' : '0.3';
+  });
+});
+
+/* =========================================================
+   SCROLL REVEAL
+   ========================================================= */
+
+const reveals = document.querySelectorAll('.reveal');
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      io.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.15 });
+reveals.forEach(el => io.observe(el));
+</script>
+
+</body>
+</html>

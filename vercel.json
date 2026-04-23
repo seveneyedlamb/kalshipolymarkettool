@@ -1,0 +1,32 @@
+{
+  "crons": [
+    {
+      "path": "/api/poll-markets",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/analyze-markets",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/aggregate-crowd",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/resolve-picks",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/check-expirations",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/process-payouts",
+      "schedule": "0 0 1 * *"
+    },
+    {
+      "path": "/api/validate-models",
+      "schedule": "0 6 * * 0"
+    }
+  ]
+}
