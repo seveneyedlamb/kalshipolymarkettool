@@ -25,6 +25,8 @@ Prediction market intelligence SaaS. Detects insider trading patterns on Kalshi 
 - **Polymarket outcomePrices:** Wrap JSON.parse in try/catch PER MARKET. One bad market must never crash the entire fetch.
 - **Pagination MAX_PAGES = 50:** Both Kalshi and Polymarket pagination loops must have a max iteration guard.
 - **Nexus tagger uses word boundary regex (`\bkeyword\b`), NOT substring.** "trump" must not match "trumpet."
+- **Nexus tagger uses word boundary regex (`\bkeyword\b`), NOT substring.** "trump" must not match "trumpet."
+- **Nexus tagger uses word boundary regex (`\bkeyword\b`), NOT substring.** "trump" must not match "trumpet."
 - ALL timestamps UTC. No timezone conversions server-side. Browser converts for display.
 - NO file over 300 lines. Split by responsibility.
 - Tier filtering uses `WHERE min_tier IN ([allowed_tiers])` not rank comparison.
@@ -55,10 +57,12 @@ Prediction market intelligence SaaS. Detects insider trading patterns on Kalshi 
 - Pick Detail page (/dashboard/pick/[id]) MUST check pick.min_tier against user's tier before rendering. Harpooner navigating to Ahab pick URL = "Upgrade to unlock" not free analysis.
 - **Scoring engine parser validates PER MARKET, not per batch.** Skip invalid markets, write valid ones.
 - **Skip-if-unchanged rebadge:** `UPDATE picks SET cycle_id = new_cycle WHERE market_id IN (...) AND resolved = false`.
+- **p_neutral/p_aware CHECK constraints:** Both must be 0-100 or NULL. Added to SQL schema.
 - **callWithFallback wrapper:** cache invalidation on config change via config hash/version. Rate limit: 2s delay between batches.
 - **Web search tool type:** import `WEB_SEARCH_TOOL_TYPE` from models.ts. NEVER hardcode 'web_search_20250305'.
-- **Bet tracker server-side validation:** verify market status is 'active' before inserting bet.
+- **Bet tracker server-side validation:** verify market status is 'active' before inserting bet. Race condition: market resolves between page load and submission.
 - **Bet P&L formulas:** YES-YES: `size*(1-entry)/entry`, YES-NO: `-size`, NO-NO: `size*entry/(1-entry)`, NO-YES: `-size`. Guard entry_price 0 and 1.
+- **user_bets entry_price CHECK:** `(entry_price > 0.0 AND entry_price < 1.0)` -- exclusive bounds, 0 and 1 are resolved markets.
 - **Crypto renewal:** EXTEND subscription_expires_at by 30 days if already active, else set to now()+30d.
 - **Admin health thresholds:** Poller 5m/15m, Scorer 2h/6h, Aggregator 30m/2h, Resolver 25h/48h.
 - **DISTINCT ON requires ORDER BY to start with same column:** `DISTINCT ON (market_id) ... ORDER BY market_id, pick_score DESC`.

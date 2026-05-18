@@ -585,7 +585,7 @@ export const NEXUS_CONFIG = {
 // nexus_entities = object of matched entities with their tiers.
 ```
 
-Matching is case-insensitive substring search against market title + description. This is simple string matching, not NLP. Fast enough to run inline during upsert for 2,000 markets.
+Matching is case-insensitive word-boundary regex search against market title + description. This is simple regex matching, not NLP. Use `\bkeyword\b` pattern to avoid false positives ("trump" must not match "trumpet," "musk" must not match "musket"). Fast enough to run inline during upsert for 2,000 markets.
 
 **Snapshots are only stored for nexus-relevant markets (nexus_score > 0).** The poller upserts ALL markets to keep the markets table complete, but only inserts snapshot rows for the 100-300 politically relevant ones. This keeps storage and query performance manageable.
 
@@ -595,13 +595,13 @@ Matching is case-insensitive substring search against market title + description
 Z-score on volume_24h:
   mean = AVG(volume_24h) from snapshots WHERE market_id = X AND captured_at > now() - 7 days
   stddev = STDDEV(volume_24h) from same window
-  z_volume = (current_volume_24h - mean) / NULLIF(stddev, 0)
-  If stddev = 0 (no variation), skip this market.
+  z_volume = (current_volume_24h - mean) / COALESCE(NULLIF(stddev, 0), 0)
+  If stddev IS NULL OR stddev = 0 (no variation), skip this market.
 
 Z-score on yes_price:
   mean = AVG(yes_price) from same window
   stddev = STDDEV(yes_price) from same window
-  z_price = (current_yes_price - mean) / NULLIF(stddev, 0)
+  z_price = (current_yes_price - mean) / COALESCE(NULLIF(stddev, 0), 0)
 
 Anomaly triggers if z_volume > 2.5 OR z_price > 2.5.
 Anomaly type: 'volume_spike' if z_volume triggered, 'price_move' if z_price triggered, 'both' if both.
@@ -3365,9 +3365,9 @@ If zero rows returned, the user has hit the 3-per-hour cap. Skip this dispatch s
 
 **Web search tool configuration.** The Anthropic API requires the tool to be specified in the request:
 ```typescript
-tools: [{ type: "web_search_20250305", name: "web_search" }]
+  tools: [{ type: WEB_SEARCH_TOOL_TYPE, name: "web_search" }]
 ```
-This tool type string is version-dated. Check Anthropic docs for the current version when building. Only the Researcher stage (Stage 1) includes the web search tool. The Analyst stage (Stage 2) does NOT include it (evidence already gathered).
+The `WEB_SEARCH_TOOL_TYPE` constant is defined in `lib/utils/models.ts` and must be kept in sync with Anthropic's current API version. Do NOT hardcode the version-dated string (e.g., 'web_search_20250305') directly in the prompt builder -- it changes when Anthropic updates the tool.
 
 **Partial batch handling.** Claude may return fewer markets than were in the batch (it might skip one it can't analyze, or truncate due to output length). The parser MUST handle this: compare `response.length` to `batch.length`. For each market in the batch, check if a matching `market_platform_id` exists in the response. Write picks for markets that WERE returned. Log missing markets to error_log with `error_type: 'partial_batch'` and the list of missing market_platform_ids. Do NOT discard the entire batch because one market was missed. Do NOT retry the whole batch for one missing market (waste of tokens). The missing market will be picked up in the next hourly cycle.
 
