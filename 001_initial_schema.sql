@@ -4,7 +4,8 @@
 -- Version: Phase 1 Initial Migration
 -- Last updated: 2026-04-15
 -- Table count: 19
--- Last edit: Added waitlist table (pre-launch email capture, L09 fix)
+-- Last edit: Audit P - added p_neutral/p_aware CHECK constraints,
+--   entry_price exclusive bounds, removed duplicate constraints
 --
 -- THIS FILE IS THE SOURCE OF TRUTH FOR DATABASE STRUCTURE.
 -- Every other document (architecture, CLAUDE.md, reference, build guide)
@@ -145,24 +146,6 @@ CREATE TABLE picks (
   actual_pnl_pct float
 );
 
-ALTER TABLE picks ADD CONSTRAINT chk_pick_probability
-  CHECK (true_probability >= 0 AND true_probability <= 100);
-
-ALTER TABLE picks ADD CONSTRAINT chk_pick_p_neutral
-  CHECK (p_neutral IS NULL OR (p_neutral >= 0 AND p_neutral <= 100));
-
-ALTER TABLE picks ADD CONSTRAINT chk_pick_p_aware
-  CHECK (p_aware IS NULL OR (p_aware >= 0 AND p_aware <= 100));
-
-ALTER TABLE picks ADD CONSTRAINT chk_pick_probability
-  CHECK (true_probability >= 0 AND true_probability <= 100);
-
-ALTER TABLE picks ADD CONSTRAINT chk_pick_p_neutral
-  CHECK (p_neutral IS NULL OR (p_neutral >= 0 AND p_neutral <= 100));
-
-ALTER TABLE picks ADD CONSTRAINT chk_pick_p_aware
-  CHECK (p_aware IS NULL OR (p_aware >= 0 AND p_aware <= 100));
-
 CREATE TABLE user_profiles (
   id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email text,
@@ -208,12 +191,6 @@ CREATE TABLE user_bets (
   pnl_usd float,
   resolved_at timestamptz
 );
-
-ALTER TABLE user_bets ADD CONSTRAINT chk_bet_entry_price
-  CHECK (entry_price > 0.0 AND entry_price < 1.0);
-
-ALTER TABLE user_bets ADD CONSTRAINT chk_bet_entry_price
-  CHECK (entry_price > 0.0 AND entry_price < 1.0);
 
 CREATE TABLE user_watchlist (
   user_id uuid REFERENCES user_profiles(id) ON DELETE CASCADE,
@@ -374,6 +351,15 @@ ALTER TABLE picks ADD CONSTRAINT chk_pick_min_tier
 ALTER TABLE picks ADD CONSTRAINT chk_pick_confidence
   CHECK (confidence_level IN ('high', 'medium', 'low'));
 
+ALTER TABLE picks ADD CONSTRAINT chk_pick_probability
+  CHECK (true_probability >= 0 AND true_probability <= 100);
+
+ALTER TABLE picks ADD CONSTRAINT chk_pick_p_neutral
+  CHECK (p_neutral IS NULL OR (p_neutral >= 0 AND p_neutral <= 100));
+
+ALTER TABLE picks ADD CONSTRAINT chk_pick_p_aware
+  CHECK (p_aware IS NULL OR (p_aware >= 0 AND p_aware <= 100));
+
 ALTER TABLE markets ADD CONSTRAINT chk_market_status
   CHECK (status IN ('active', 'closed', 'resolved'));
 
@@ -391,6 +377,9 @@ ALTER TABLE user_bets ADD CONSTRAINT chk_bet_direction
 
 ALTER TABLE user_bets ADD CONSTRAINT chk_bet_status
   CHECK (status IN ('active', 'resolved', 'voided'));
+
+ALTER TABLE user_bets ADD CONSTRAINT chk_bet_entry_price
+  CHECK (entry_price > 0.0 AND entry_price < 1.0);
 
 ALTER TABLE user_bets ADD CONSTRAINT chk_bet_size
   CHECK (size_usd > 0 AND size_usd <= 100000);
@@ -506,7 +495,7 @@ BEGIN
     new_code := substr(md5(random()::text || clock_timestamp()::text), 1, 8);
     BEGIN
       INSERT INTO public.user_profiles (id, email, referral_code)
-      VALUES (NEW.id, NEW.email, new_code);
+      VALUES (NEW.id, COALESCE(NEW.email, ''), new_code);
       RETURN NEW;
     EXCEPTION WHEN unique_violation THEN
       i := i + 1;
