@@ -98,7 +98,7 @@ Locations:
 - `harpoon-cannon-build-guide.md` session headings (actual count)
 - `HARPOON-REFERENCE.md` build order summary
 
-### Error count: 407 fixed | 545+ total edits
+### Error count: 449 fixed | 587+ total edits
 Locations:
 - `ERROR-HUNTER.md` grand total + density map
 - `HARPOON-REFERENCE.md` status section

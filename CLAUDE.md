@@ -15,22 +15,36 @@ Prediction market intelligence SaaS. Detects insider trading patterns on Kalshi 
 ## Critical Rules
 - **READ SYNC-PROTOCOL.md FIRST.** Before making ANY edit to this project, read the sync protocol. It lists every canonical value, every file that must stay in sync, and the post-edit audit commands. Drift is the #1 threat to this project. The protocol is how we kill it.
 - **001_initial_schema.sql IS THE SOURCE OF TRUTH FOR THE DATABASE.** Every column, index, RLS policy, trigger, and system_state seed that should exist in Supabase MUST be in that file. If the architecture doc says a column exists and the SQL doesn't create it, the column doesn't exist. Any schema-related edit to any other document REQUIRES a matching edit to 001_initial_schema.sql in the same session. Period.
+- **Session 2 MUST complete before any other session.** All subsequent sessions import from `src/types/database.ts`. Running sessions out of order causes import failures.
+- **next.config.js MUST include `serverExternalPackages: ['@supabase/supabase-js']`**. Without this, the Supabase admin client breaks on Vercel serverless.
+- **Middleware MUST export `runtime = 'nodejs'`**. Next.js defaults to Edge Runtime which doesn't support the Supabase admin client.
+- **tsconfig.json MUST have `"strict": true, "noUncheckedIndexedAccess": true`**. Without strict mode, TypeScript silently allows undefined access on indexed properties (source of many NaN bugs).
+- **NEVER import `lib/supabase/admin.ts` from a client component.** Add a dev-time guard that throws if this happens. The admin client contains the service role key.
 - ALL prices stored as 0.00-1.00 float. Kalshi: use `yes_bid_dollars` field (parseFloat). Polymarket: use `outcomePrices` (JSON.parse then parseFloat). NEVER use legacy cent fields.
+- **NaN guard:** After ANY parseFloat, check `if (isNaN(val)) { skip; }`. NaN is neither > 1.0 nor < 0.0 and passes range checks silently.
+- **Polymarket outcomePrices:** Wrap JSON.parse in try/catch PER MARKET. One bad market must never crash the entire fetch.
+- **Pagination MAX_PAGES = 50:** Both Kalshi and Polymarket pagination loops must have a max iteration guard.
+- **Nexus tagger uses word boundary regex (`\bkeyword\b`), NOT substring.** "trump" must not match "trumpet."
 - ALL timestamps UTC. No timezone conversions server-side. Browser converts for display.
 - NO file over 300 lines. Split by responsibility.
 - Tier filtering uses `WHERE min_tier IN ([allowed_tiers])` not rank comparison.
 - Atomic locks for poller and scorer: `UPDATE system_state SET value='running', updated_at=now() WHERE key='poller_lock' AND (value='idle' OR updated_at < now()-interval '3 min') RETURNING *`
 - If no rows returned, another instance is running. Skip this cycle.
 - Webhook idempotency: check `payments.provider_event_id` unique constraint before processing.
+- **Webhook processing order:** (1) signature/callback verification, (2) schema validation, (3) idempotency check, (4) business logic.
+- **Coinremitter uses callback verification (getTransaction API), NOT HMAC signatures.**
 - AI engine branded "Harpoon Cannon Intelligence" in all user-facing output. Never "Claude" or "Anthropic."
 - No refunds. Chargebacks = account ban + legal action.
 - Anomaly detection requires MIN 100 snapshots per market before activating.
+- **Anomaly stddev guard:** Use `COALESCE(NULLIF(stddev, 0), 0)` -- stddev can be NULL, not just 0.
 - Rate limit dashboard pages: 60 req/min per user. Rate limit API routes: 30 req/min per IP.
 - Concurrent session limit per tier: Harpooner=2, First Mate=3, Ahab=5. Prune inactive sessions > 30min.
-- Watermark rationale text with invisible Unicode encoding user_id before serving.
+- Watermark rationale text with invisible Unicode encoding user_id before serving. Use `Buffer.from()` not `btoa()`.
 - SUPABASE_SERVICE_ROLE_KEY: server-side only. NEVER in NEXT_PUBLIC_ vars. NEVER exposed to client.
 - Supabase client usage: browser client (client.ts) for client components only. Server client (server.ts) for pages/actions needing user context. Admin client (admin.ts) for ALL cron jobs, webhooks, and internal routes. Using the wrong client = either RLS blocks everything or security is bypassed.
+- **/status route MUST use admin client** -- system_state RLS blocks all non-mrr_cache reads for anon key.
 - user_profiles row is created AUTOMATICALLY by the `handle_new_user` database trigger on auth.users INSERT. Frontend does NOT create this row manually. The trigger is in 001_initial_schema.sql.
+- **Referral cookie flow:** trigger creates user_profiles (referred_by=NULL) -> auth callback UPDATES referred_by from cookie. It is an UPDATE, not INSERT.
 - Internal/cron routes use DUAL AUTH: accept EITHER `Bearer ${CRON_SECRET}` (Vercel cron) OR `Bearer ${HARPOON_INTERNAL_SECRET}` (internal fire-and-forget calls). Both are valid callers. Without dual auth, either scheduled crons or internal calls fail.
 - Poller uses Promise.allSettled (NOT Promise.all) for platform fetches. One platform down must not kill both.
 - Platform connectors return NormalizedMarket interface (defined in lib/platforms/types.ts). Poller works ONLY with NormalizedMarket, never raw API responses.
@@ -39,6 +53,22 @@ Prediction market intelligence SaaS. Detects insider trading patterns on Kalshi 
 - Voided/cancelled markets: was_correct = NULL, P&L = 0, excluded from accuracy tracking.
 - Market status values (normalized): 'active' (tradeable), 'closed' (trading stopped), 'resolved' (outcome known). Platform mapping: Kalshi unopened/open -> active, closed -> closed, settled -> resolved. Polymarket active=true -> active, closed=true -> closed, resolved -> resolved.
 - Pick Detail page (/dashboard/pick/[id]) MUST check pick.min_tier against user's tier before rendering. Harpooner navigating to Ahab pick URL = "Upgrade to unlock" not free analysis.
+- **Scoring engine parser validates PER MARKET, not per batch.** Skip invalid markets, write valid ones.
+- **Skip-if-unchanged rebadge:** `UPDATE picks SET cycle_id = new_cycle WHERE market_id IN (...) AND resolved = false`.
+- **callWithFallback wrapper:** cache invalidation on config change via config hash/version. Rate limit: 2s delay between batches.
+- **Web search tool type:** import `WEB_SEARCH_TOOL_TYPE` from models.ts. NEVER hardcode 'web_search_20250305'.
+- **Bet tracker server-side validation:** verify market status is 'active' before inserting bet.
+- **Bet P&L formulas:** YES-YES: `size*(1-entry)/entry`, YES-NO: `-size`, NO-NO: `size*entry/(1-entry)`, NO-YES: `-size`. Guard entry_price 0 and 1.
+- **Crypto renewal:** EXTEND subscription_expires_at by 30 days if already active, else set to now()+30d.
+- **Admin health thresholds:** Poller 5m/15m, Scorer 2h/6h, Aggregator 30m/2h, Resolver 25h/48h.
+- **DISTINCT ON requires ORDER BY to start with same column:** `DISTINCT ON (market_id) ... ORDER BY market_id, pick_score DESC`.
+- **Realtime reconnect:** full refetch on reconnect, show "Reconnecting..." indicator.
+- **Polar cancellation:** handle BOTH `subscription.updated` and `subscription.canceled` events.
+- **Annual commission clawback:** if annual subscriber cancels within 90 days, reduce referrer's affiliate_balance.
+- **CSP headers:** must include `'unsafe-inline' 'unsafe-eval'` for Next.js hydration scripts.
+- **Rate limiting:** use Vercel Edge Rate Limiting (Pro plan) or Supabase-based counter. In-memory does NOT work on serverless.
+- **Share button:** guard null referral_code with `|| 'unknown'` or skip param.
+- **trackEvent utility:** WRITE-ONLY. user_events RLS allows INSERT, blocks SELECT from frontend.
 
 ## Database Tables (19)
 markets, snapshots, anomalies, picks, user_profiles, user_bets, user_watchlist, market_views, payments, referrals, affiliate_payouts, notification_log, system_state, error_log, active_sessions, courtroom_verdicts, user_events, user_feedback, waitlist

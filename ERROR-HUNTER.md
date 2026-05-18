@@ -13,16 +13,16 @@ Track where bugs have been found. The section with the most bugs WILL have more 
 
 | Section | Issues Found | Complexity | Predicted Remaining |
 |---|---|---|---|
-| Scoring Engine (pipeline, prompt, parser, models) | 60 + K03 K09 = 62 | Very High | VERY LOW (kill switch added, credit race documented, status filter added, empty batch handled) |
-| Payment/Affiliate (webhooks, commission, referral, tiers) | 50 + K05 K06 K10 = 53 | High | VERY LOW (clawback specified, custom_data1 specified, out-of-order handling added) |
-| Dashboard/Queries (Pick Board, detail, bet tracker, live edge) | 38 + K02 = 39 | Medium | VERY LOW (bet validation added, tier enforcement, empty states, debounce all spec'd) |
-| Poller (fetch, nexus, anomaly, lock, resolution) | 41 + K01 K11 = 43 | Medium | VERY LOW (volume parsing, response validation, pagination, all columns verified) |
-| Operations (crowd, notifications, pruning, error logging) | 32 + K04 = 33 | Medium | VERY LOW (failure counter, Discord format, resolution notification all specified) |
-| Security (RLS, sessions, rate limit, watermark, CSP) | 44 + K14 = 45 | Medium | VERY LOW (rate limit, watermark, Supabase down, tier validation all specified) |
-| Database Schema (columns, indexes, constraints, seeds, trigger) | 28 + I01 I05 J09 = 31 | Low | VERY LOW (close_time added, discord_fail_count added, all columns cross-ref'd) |
-| Architecture/Foundation (tech stack, vendors, execution) | 40 + G01 H03 H04 H05 I04 = 45 | High | VERY LOW (all pricing updated, all math recalculated) |
+| Scoring Engine (pipeline, prompt, parser, models) | 60 + K03 K09 + O20 O21 O22 O23 O25 = 67 | Very High | VERY LOW (cache invalidation, rate limits, per-market validation, rebadge guard, tool constant) |
+| Payment/Affiliate (webhooks, commission, referral, tiers) | 50 + K05 K06 K10 + O30 O31 O32 O33 O34 O35 = 59 | High | VERY LOW (sig algorithm, callback pattern, both events, renewal, referral flow, clawback) |
+| Dashboard/Queries (Pick Board, detail, bet tracker, live edge) | 38 + K02 + O26 O27 O28 O29 O38 O39 = 45 | Medium | VERY LOW (reconnect, DISTINCT ON, server validation, P&L formulas, admin client, thresholds) |
+| Poller (fetch, nexus, anomaly, lock, resolution) | 41 + K01 K11 + O09 O10 O11 O15 O16 O17 O18 O19 = 51 | Medium | VERY LOW (NaN, null, pagination, stddev, PG version, JSON format, timeout, resolution guard) |
+| Operations (crowd, notifications, pruning, error logging) | 32 + K04 + O36 O37 O47 = 36 | Medium | VERY LOW (index usage, zero-views, aggregator key) |
+| Security (RLS, sessions, rate limit, watermark, CSP) | 44 + K14 + O42 O43 O44 O45 O49 = 50 | Medium | VERY LOW (runtime, Buffer, rate limit storage, CSP, admin guard) |
+| Database Schema (columns, indexes, constraints, seeds, trigger) | 28 + I01 I05 J09 + O05 O06 O08 = 34 | Low | VERY LOW (OAuth email, collision rate, realtime guard) |
+| Architecture/Foundation (tech stack, vendors, execution) | 40 + G01 H03 H04 H05 I04 + O01 O02 O03 O04 O46 O48 O50 = 52 | High | VERY LOW (next.config, shadcn order, quoting, auth, session order, env vars, strict mode) |
 | Mermaid Diagrams (11 diagrams) | 12 + J07 J12 = 14 | Medium | VERY LOW (scoring mermaid updated with status filter + boundary fix) |
-| Missing Specs (features that had no specification at all) | 104 + I02 I06 I07 I08 I09 I10 I11 = 111 | N/A | VERY LOW (Coinremitter verification, pagination, outcomePrices safety, Discord format, device hash, watermark encoding all specified) |
+| Missing Specs (features that had no specification at all) | 104 + I02 I06 I07 I08 I09 I10 I11 + O12 O13 O14 O24 = 115 | N/A | VERY LOW (status mapping, word boundaries, ordinal signal, CHECK constraints) |
 
 **How to use:** When hunting bugs, start with HIGH probability sections. Spend 60% of review time there. When a new bug is found, update this table.
 
@@ -662,7 +662,8 @@ F41 MEDIUM: Bet button only checked 'resolved' not 'closed'. Closed markets stil
 | K: Adversarial 9-Method Repeat | 14 | Volume parsing, bet validation, kill switch, out-of-order webhooks, API schema validation |
 | L: Full Cross-File Drift + Concept Gaps | 24 | File count drift, stale TOC, missing specs, platform playbook, refund clawback, Polar mode, waitlist table |
 | M: Production Monk Phase 1 Readiness | 4 | SQL header, status page client, deploy checklist, notification_type column |
-| **GRAND TOTAL** | **407** | **all found and fixed before a single line of code** |
+| O: Build Guide Pre-Code Anticipation | 42 | next.config, shadcn order, NaN guards, word boundaries, CSP, middleware runtime, P&L formulas, webhook order, etc. |
+| **GRAND TOTAL** | **449** | **all found and fixed before a single line of code** |
 
 Additional feature enhancements and improvements: ~138 edits (competitive features, social sharing, fleet metaphor, Polyseer patterns, Phase 3b/4 specs, event tracking, feedback system, annual billing, exit survey, email capture, status page, waitlist table, POLAR_MODE, deploy checklist)
 
@@ -1333,4 +1334,89 @@ Wolf flagged the one vendor-failure scenario that would kill the product silentl
 
 ---
 
-**Running total: 407 (pre-Wolf) + 19 (Audit N) + 18 (Audit N2+N3) + 1 major subsystem (Audit N4) = 445+ pre-build fixes and improvements.** Phase 1 spec is ready for Session 1.
+**Running total: 407 (pre-Wolf) + 19 (Audit N) + 18 (Audit N2+N3) + 1 major subsystem (Audit N4) + 42 (Audit O) = 487+ pre-build fixes and improvements.** Phase 1 spec is ready for Session 1.
+
+---
+
+## AUDIT O: BUILD GUIDE PRE-CODE ANTICIPATION (2026-05-18)
+
+Applied Error Hunter Methods 1-9 systematically to every Phase 1 build guide session. Focused on gaps between the abbreviated build guide commands and the full architecture spec -- the places where a coder following ONLY the build guide would build the wrong thing. 42 issues found and fixed in the build guide and CLAUDE.md.
+
+### Session 1: Project Scaffold (5 fixes)
+- **O01 CRITICAL (FIXED):** `next.config.js` missing `serverExternalPackages: ['@supabase/supabase-js']`. Without this, Next.js bundles the Supabase admin client which uses `node:crypto` native modules that break on Vercel serverless. Added to Session 1 command.
+- **O02 HIGH (FIXED):** shadcn/ui init overwrites `tailwind.config.ts` and `globals.css`. Specified critical order: init shadcn FIRST, then customize brand colors. Added to Session 1.
+- **O03 MEDIUM (FIXED):** `.env.local` values with special characters (base64 keys with `+`, `/`, `=`) break shell parsing if unquoted. Added quoting requirement to Session 1.
+- **O04 MEDIUM (FIXED):** `supabase gen types` fails if CLI isn't authenticated. Added `supabase login` + `supabase link` prerequisite to Session 2.
+- **O50 MEDIUM (FIXED):** tsconfig.json missing strict mode flags. Added `"strict": true`, `"noUncheckedIndexedAccess": true`, `"noImplicitOverride": true`, `"noUnusedLocals": true` to Session 1. Without these, TypeScript silently allows undefined access on indexed properties.
+
+### Session 2: Database Setup (3 fixes)
+- **O05 HIGH (FIXED):** `handle_new_user` trigger fires on ALL auth.users inserts including OAuth. Added COALESCE guard for null email from OAuth providers to Session 2 notes.
+- **O06 LOW (ACKNOWLEDGED):** Referral code collision rate documented. 8-char hex = 4.3B space, 5-attempt retry loop handles birthday paradox. Not a bug, just noted.
+- **O08 MEDIUM (FIXED):** `ALTER PUBLICATION supabase_realtime` fails if Realtime is disabled in Supabase dashboard. Added recovery instructions to Session 2.
+
+### Session 3: Platform Connectors (5 fixes)
+- **O09 CRITICAL (FIXED):** Polymarket `outcomePrices` JSON.parse can throw on malformed data, crashing entire fetch cycle. Added per-market try/catch requirement to Session 3.
+- **O10 HIGH (FIXED):** Kalshi `yes_bid_dollars` can be null for suspended markets. `parseFloat(null)` = NaN which passes range checks. Added explicit null check + NaN guard to Session 3.
+- **O11 HIGH (FIXED):** Pagination loops have no MAX_PAGES guard. Added `MAX_PAGES = 50` to both connectors to prevent infinite loops on API bugs.
+- **O12 MEDIUM (FIXED):** NormalizedMarket status mapping collapses `unopened` to `active`, meaning untradeable markets are treated as active. Added note that scorer should skip markets where `yes_price` is null.
+
+### Session 4: Nexus Tagger (2 fixes)
+- **O13 HIGH (FIXED):** Case-insensitive substring matching creates false positives ("trump" matches "trumpet"). Changed to word boundary regex `\bkeyword\b` in Session 4 command.
+- **O14 MEDIUM (FIXED):** nexus_score is an ordinal signal, not a probability. Added clarification note to Session 4.
+
+### Session 5: Poller (5 fixes)
+- **O15 CRITICAL (FIXED):** Anomaly z-score with `NULLIF(stddev, 0)` still fails when stddev is NULL. Changed to `COALESCE(NULLIF(stddev, 0), 0)` in Session 5.
+- **O16 HIGH (FIXED):** Poller upsert CTE pattern requires PostgreSQL 12+. Documented as PG-specific SQL in Session 5.
+- **O17 HIGH (FIXED):** `last_success_poller` JSON format unspecified for duration logging. Added exact format `'{"at": "...", "duration_ms": ...}'` to Session 5.
+- **O18 HIGH (FIXED):** Whale alert fire-and-forget POST has no timeout. Added 5-second timeout with error swallowing to Session 5.
+- **O19 MEDIUM (FIXED):** Resolution detection fallback `price >= 0.99` triggers on legitimate high-confidence markets. Added secondary check: only auto-resolve if status changed from previous poll.
+
+### Session 6: Scoring Engine (5 fixes)
+- **O20 CRITICAL (FIXED):** `callWithFallback` cache has no invalidation on config change. Added config hash/version requirement to Session 6.
+- **O21 CRITICAL (FIXED):** Scoring engine batch size vs Claude API rate limits. Added 2-second delay between batches + 429 backoff handling to Session 6.
+- **O22 HIGH (FIXED):** Parser validation rejects entire batch on single invalid market. Changed to per-market validation: skip invalid, write valid. Added to Session 6.
+- **O23 HIGH (FIXED):** Skip-if-unchanged rebadge resurrects resolved picks. Added `AND resolved = false` guard to Session 6.
+- **O25 MEDIUM (FIXED):** `web_search_20250305` hardcoded string becomes stale. Changed to `WEB_SEARCH_TOOL_TYPE` constant from models.ts. Added verification step to Session 6.
+
+### Session 7: Dashboard - Pick Board (2 fixes)
+- **O26 HIGH (FIXED):** Supabase Realtime reconnects fire duplicate renders. Added full refetch on reconnect + "Reconnecting..." indicator to Session 7.
+- **O27 MEDIUM (FIXED):** `DISTINCT ON (market_id)` requires `ORDER BY market_id` as first sort column. Added exact syntax requirement to Session 7.
+
+### Session 8: Pick Detail + Bet Tracker (2 fixes)
+- **O28 HIGH (FIXED):** "I Bet This" race condition -- market resolves between page load and submission. Added server-side market status validation requirement to Session 8.
+- **O29 HIGH (FIXED):** P&L formula for NO direction bets unspecified. Added exact 4-case formulas with division-by-zero guards to Session 8.
+
+### Session 9: Payment Integration (5 fixes)
+- **O30 CRITICAL (FIXED):** Polar webhook signature algorithm unspecified. Added note to read Polar's current docs before implementing, as algorithm may change.
+- **O31 CRITICAL (FIXED):** Coinremitter webhook verification described as "Signature verify" but actually uses callback pattern (getTransaction API). Clarified in Session 9.
+- **O32 HIGH (FIXED):** Polar may send `subscription.updated` before `subscription.canceled`. Added handling for BOTH event types to Session 9.
+- **O33 HIGH (FIXED):** Crypto renewal creates new payment vs extending subscription. Added EXTEND logic (add 30 days to existing expiration if active) to Session 9.
+- **O33 (order):** Added webhook processing order requirement: signature -> schema -> idempotency -> business logic.
+
+### Session 10: Affiliate System (2 fixes)
+- **O34 HIGH (FIXED):** Referral cookie sets referred_by via UPDATE, not INSERT. Clarified the full flow (trigger creates row -> auth callback updates) in Session 10.
+- **O35 MEDIUM (FIXED):** Annual subscription commission clawback unspecified. Added 90-day clawback policy to Session 10.
+
+### Session 11: Notifications + Crowd Aggregation (2 fixes)
+- **O36 HIGH (FIXED):** `aggregate-crowd` cron reads unbounded `market_views`. Added index usage requirement and `last_success_aggregator` write to Session 11.
+- **O37 MEDIUM (FIXED):** `crowd_yes_pct` guard handles zero bets but not zero views. Added zero-views warning log to Session 11.
+
+### Session 12: Landing + Pricing + Admin (2 fixes)
+- **O38 HIGH (FIXED):** `/status` page reads `system_state` but RLS blocks non-mrr_cache reads for anon key. Added "MUST use admin client" to Session 12.
+- **O39 MEDIUM (FIXED):** Admin health color thresholds unspecified. Added explicit thresholds (poller 5m/15m, scorer 2h/6h, aggregator 30m/2h, resolver 25h/48h) to Session 12.
+
+### Session 13: Onboarding + Social Sharing (2 fixes)
+- **O40 HIGH (FIXED):** `trackEvent` utility is WRITE-ONLY but coder might add SELECT. Added explicit RLS warning to Session 13.
+- **O41 MEDIUM (FIXED):** Share button assumes referral_code exists. Added null guard to Session 13.
+
+### Session 14: Security + Deploy (5 fixes)
+- **O42 CRITICAL (FIXED):** Middleware defaults to Edge Runtime but needs Node.js for admin client. Added `export const runtime = 'nodejs'` requirement to Session 14.
+- **O43 CRITICAL (FIXED):** Unicode watermark uses `btoa()` (browser API) not available in Node.js. Changed to `Buffer.from()` in Session 14.
+- **O44 HIGH (FIXED):** Rate limiting has no storage mechanism on Vercel serverless. Specified Vercel Edge Rate Limiting (Pro plan) or Supabase-based counter in Session 14.
+- **O45 HIGH (FIXED):** CSP headers block Next.js inline scripts. Added required `'unsafe-inline' 'unsafe-eval'` to Session 14.
+- **O48 MEDIUM (FIXED):** .env.local template missing non-official vars. Added NODE_ENV, NEXT_PUBLIC_APP_URL, ANTHROPIC_BASE_URL to Session 14.
+
+### Cross-Session Integration (2 fixes)
+- **O46 CRITICAL (FIXED):** Session order dependency not enforced. Added "Session 2 MUST complete before any other session" to Session 2.
+- **O47 HIGH (FIXED):** `system_state` key naming for aggregate-crowd unspecified. Added `last_success_aggregator` write requirement to Session 11.
+- **O49 MEDIUM (FIXED):** `lib/supabase/admin.ts` can be accidentally imported in client components. Added ESLint/dev-time guard requirement to Session 1.
